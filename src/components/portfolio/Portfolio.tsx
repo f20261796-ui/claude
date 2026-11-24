@@ -11,6 +11,29 @@ import Magnetic from "@/components/motion/Magnetic";
 const EASE = [0.16, 1, 0.3, 1] as const;
 const InkField = dynamic(() => import("@/components/gl/InkField"), { ssr: false });
 const RedRoom = dynamic(() => import("@/components/gl/RedRoom"), { ssr: false });
+const BottleShelf = dynamic(() => import("@/components/gl/BottleShelf"), { ssr: false });
+
+function Qualifications({ d, t, index }: { d: PortfolioData; t: Theme; index: string }) {
+  const items = [
+    ...d.education.map((e) => ({
+      kind: "Education",
+      title: e.institution,
+      sub: [e.degree, e.field].filter(Boolean).join(", "),
+      meta: [[e.startYear, e.endYear].filter(Boolean).join(" — "), e.grade].filter(Boolean).join(" · "),
+    })),
+    ...d.certifications.map((c) => ({ kind: "Certification", title: c.title, sub: c.issuer, meta: c.date, link: c.link })),
+  ];
+  if (!items.length) return null;
+  const sc = sceneColors(d, t);
+  return (
+    <section id="qualifications" className="py-24 md:py-36">
+      <div className="px-5 md:px-10">
+        <SectionTitle index={index} title="Qualifications" t={t} accent={d.accent} />
+      </div>
+      <BottleShelf items={items} ink={sc.ink} paper={sc.paper} accent={d.accent} labelClass={t.label} headingClass={t.heading} />
+    </section>
+  );
+}
 
 /** Per-theme colours for the WebGL scenes. */
 function sceneColors(d: PortfolioData, t: Theme) {
@@ -84,7 +107,7 @@ function Scramble({ text, className = "" }: { text: string; className?: string }
 function SectionTitle({ index, title, t, accent }: { index: string; title: string; t: Theme; accent: string }) {
   return (
     <div className="mb-10 flex items-end justify-between gap-6 border-b pb-5 md:mb-16" style={{ borderColor: t.line }}>
-      <h2 className={`${t.heading} text-[13vw] md:text-[6vw]`}>
+      <h2 className={`${t.heading} ${title.length > 10 ? "text-[9.6vw] md:text-[5vw]" : "text-[13vw] md:text-[6vw]"}`}>
         <span className="sr-only">{title}</span>
         <StreakTitle>
           {title}
@@ -749,9 +772,8 @@ export default function Portfolio({ data: d, brandUrl = "/" }: { data: Portfolio
     if (d.skills.length) list.push({ id: "skills", label: "Skills" });
     if (d.projects.length) list.push({ id: "projects", label: "Work" });
     if (d.experience.length) list.push({ id: "experience", label: "Experience" });
-    if (d.education.length) list.push({ id: "education", label: "Education" });
+    if (d.education.length || d.certifications.length) list.push({ id: "qualifications", label: "Education" });
     if (d.achievements.length) list.push({ id: "achievements", label: "Awards" });
-    if (d.certifications.length) list.push({ id: "certifications", label: "Certs" });
     list.push({ id: "contact", label: "Contact" });
     return list;
   }, [d]);
@@ -818,7 +840,6 @@ export default function Portfolio({ data: d, brandUrl = "/" }: { data: Portfolio
           name={d.name}
           headline={d.headline}
           intro={d.intro}
-          photoUrl={d.photoUrl}
           room={d.accent}
           ink={sceneColors(d, t).ink}
           paper={sceneColors(d, t).paper}
@@ -837,22 +858,8 @@ export default function Portfolio({ data: d, brandUrl = "/" }: { data: Portfolio
           t={t}
           items={d.experience.map((e) => ({ top: e.duration, title: e.role || e.company, sub: e.role ? e.company : "", meta: "", tag: e.kind, body: e.description }))}
         />
-        <Timeline
-          id="education"
-          title="Education"
-          index={idx("education")}
-          d={d}
-          t={t}
-          items={d.education.map((e) => ({
-            top: [e.startYear, e.endYear].filter(Boolean).join(" — "),
-            title: e.institution,
-            sub: [e.degree, e.field].filter(Boolean).join(", "),
-            meta: e.grade,
-            body: "",
-          }))}
-        />
+        <Qualifications d={d} t={t} index={idx("qualifications")} />
         <Recognition id="achievements" title="Achievements" index={idx("achievements")} items={d.achievements} d={d} t={t} />
-        <Recognition id="certifications" title="Certifications" index={idx("certifications")} items={d.certifications} d={d} t={t} />
         <Contact d={d} t={t} index={idx("contact")} />
       </main>
 

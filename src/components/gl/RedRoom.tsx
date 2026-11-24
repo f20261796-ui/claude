@@ -10,11 +10,9 @@ import { hexToRgb } from "./InkField";
  *
  *  A  black → crimson streaks erupt from the floor and build a 3D hall of
  *     fluted pillars and arches (cel-shaded, ink hatching, fog)
- *  B  the camera dollies down the hall; the person's photo streaks in as a
- *     framed manga-ink panel
+ *  B  the camera dollies down the hall
  *  C  everything melts downward in vertical pixel streaks, revealing a pure
- *     red room with a white floor, the person's name painted on the wall
- *  D  a 3D glass on a white pedestal fills with liquid poured from above
+ *     red room with a white floor and the person's name painted on the wall
  */
 const FRAG = (steps: number) => /* glsl */ `
 precision highp float;
@@ -28,10 +26,6 @@ uniform vec2 uMouse;
 uniform vec3 uRoom;
 uniform vec3 uInk;
 uniform vec3 uPaper;
-uniform vec3 uLiquid;
-uniform sampler2D uPhoto;
-uniform float uPhotoAspect;
-uniform float uHasPhoto;
 uniform sampler2D uText;
 uniform float uTextAspect;
 uniform float uMobile;
@@ -126,80 +120,8 @@ vec3 hall(vec2 uv) {
   return c;
 }
 
-/* ───────────────── framed photo panel (manga ink) ───────────────── */
-vec4 panel(vec2 uv, float reveal) {
-  if (uHasPhoto < 0.5 || reveal <= 0.0) return vec4(0.0);
-  float a = uRes.x / uRes.y;
-  float w = uMobile > 0.5 ? 0.86 : 0.54;
-  float h = w * a / 2.35;
-  vec2 pc = vec2(0.5, 0.56);
-  vec2 lp = (uv - pc) / vec2(w, h) + 0.5;       // 0..1 inside panel
-  if (lp.x < -0.02 || lp.x > 1.02 || lp.y < -0.04 || lp.y > 1.04) return vec4(0.0);
-  // streak wipe from the top
-  float col = floor(uv.x * uRes.x / 4.0);
-  float front = reveal * 1.6 - hash11(col) * 0.6;
-  float yt = 1.0 - lp.y;
-  if (yt > front) return vec4(0.0);
-  bool frame = lp.x < 0.0 || lp.x > 1.0 || lp.y < 0.0 || lp.y > 1.0;
-  if (frame) return vec4(uPaper, 1.0);
-  // cover-crop centred on the upper third of the photo (eyes)
-  float pa = uPhotoAspect;                     // w/h
-  float panelA = w * a / h;
-  vec2 tuv = vec2(lp.x, lp.y);
-  float sy = pa / panelA;                      // fraction of photo height visible
-  tuv.y = 0.64 + (tuv.y - 0.5) * sy;
-  vec3 ph = texture2D(uPhoto, vec2(tuv.x, 1.0 - tuv.y)).rgb;
-  float lum = dot(ph, vec3(0.299, 0.587, 0.114));
-  lum = sat((lum - 0.5) * 1.6 + 0.55);
-  float hatch = fract((gl_FragCoord.x + gl_FragCoord.y * 0.35) * 0.22);
-  float inkAmt = lum < 0.3 ? 1.0 : lum < 0.62 ? step(hatch, 0.45) : 0.0;
-  vec3 c = mix(uPaper, uInk, inkAmt);
-  // streak smear just under the front
-  c = mix(c, uPaper * 0.9, smoothstep(front - 0.08, front, yt) * 0.6);
-  return vec4(c, 1.0);
-}
-
-/* ───────────────────── glass, liquid, pedestal ───────────────────── */
-float LEVEL;  float POUR;
-const vec3 BC = vec3(0.0, 0.62, 0.0);          // bowl centre
-
-float sdGlass(vec3 p) {
-  float shell = abs(length(p - BC) - 0.52) - 0.012;
-  shell = max(shell, p.y - (BC.y + 0.32));       // open top
-  float stem = sdCylY(p - vec3(0.0, 0.05, 0.0), 0.032, 0.1);
-  float foot = sdCylY(p - vec3(0.0, -0.05, 0.0), 0.3, 0.012) - 0.006;
-  return min(shell, min(stem, foot));
-}
-
-float solidMap(vec3 p, out float mat) {
-  float ped = sdBox(p - vec3(0.0, -1.6, 0.0), vec3(0.55, 1.53, 0.55));
-  ped = min(ped, sdBox(p - vec3(0.0, -0.1, 0.0), vec3(0.62, 0.035, 0.62)));
-  float d = ped; mat = 0.0;
-  // liquid inside bowl, wobbly surface
-  float wob = 0.012 * sin(length(p.xz) * 26.0 - uTime * 7.0) * POUR;
-  float liq = max(length(p - BC) - 0.5, p.y - (LEVEL + wob));
-  if (liq < d) { d = liq; mat = 1.0; }
-  // pouring stream from above
-  if (POUR > 0.001) {
-    vec3 s = p - vec3(0.05 * sin(p.y * 2.0 + uTime * 3.0) * 0.4, 0.0, 0.0);
-    float rad = 0.028 * POUR * (1.0 + 0.25 * sin(p.y * 18.0 - uTime * 14.0));
-    float stream = max(length(s.xz) - rad, LEVEL - p.y);
-    if (stream < d) { d = stream; mat = 2.0; }
-  }
-  return d;
-}
-
-vec3 solidNormal(vec3 p) {
-  float m; vec2 e = vec2(0.0015, -0.0015);
-  return normalize(e.xyy * solidMap(p + e.xyy, m) + e.yyx * solidMap(p + e.yyx, m) + e.yxy * solidMap(p + e.yxy, m) + e.xxx * solidMap(p + e.xxx, m));
-}
-vec3 glassNormal(vec3 p) {
-  vec2 e = vec2(0.0015, -0.0015);
-  return normalize(e.xyy * sdGlass(p + e.xyy) + e.yyx * sdGlass(p + e.yyx) + e.yxy * sdGlass(p + e.yxy) + e.xxx * sdGlass(p + e.xxx));
-}
-
 /* ───────────────────────── RED ROOM ───────────────────────── */
-vec3 room(vec2 uv, float textReveal, float fill) {
+vec3 room(vec2 uv, float textReveal) {
   float a = uRes.x / uRes.y;
   float horizon = uMobile > 0.5 ? 0.3 : 0.27;
   vec3 c;
@@ -217,8 +139,8 @@ vec3 room(vec2 uv, float textReveal, float fill) {
   c = mix(c, uInk, smoothstep(0.004, 0.0, abs(uv.y - horizon)) * 0.9);   // skirting line
 
   // painted name
-  vec2 tc = uMobile > 0.5 ? vec2(0.5, 0.82) : vec2(0.32, 0.66);
-  float tw = uMobile > 0.5 ? 0.88 : 0.52;
+  vec2 tc = uMobile > 0.5 ? vec2(0.5, 0.62) : vec2(0.5, 0.6);
+  float tw = uMobile > 0.5 ? 0.9 : 0.7;
   float th = tw * a / uTextAspect;
   vec2 tl = (uv - tc) / vec2(tw, th) + 0.5;
   if (tl.x > 0.0 && tl.x < 1.0 && tl.y > 0.0 && tl.y < 1.0) {
@@ -230,61 +152,6 @@ vec3 room(vec2 uv, float textReveal, float fill) {
     }
   }
 
-  // glass + pedestal (raymarched, only near them)
-  vec2 gc = uMobile > 0.5 ? vec2(0.5, 0.3) : vec2(0.74, 0.47);
-  vec2 sc = (uv - gc) * vec2(a, 1.0) * (uMobile > 0.5 ? 1.75 : 1.0);
-  if (abs(sc.x) < 0.42 && sc.y < 0.7 + POUR * 2.0) {
-    vec3 ro = vec3(uMouse.x * 0.25, 0.55, 3.6);
-    vec3 rd = normalize(vec3(sc.x, sc.y - 0.02, -1.5));
-    rd.yz = mat2(cos(-0.1), -sin(-0.1), sin(-0.1), cos(-0.1)) * rd.yz;
-    float t = 0.0, m = 0.0; bool hit = false; float minD = 1e3;
-    for (int i = 0; i < 64; i++) {
-      float d = solidMap(ro + rd * t, m);
-      minD = min(minD, d);
-      if (d < 0.001) { hit = true; break; }
-      t += d;
-      if (t > 8.0) break;
-    }
-    // glass (transparent) pass
-    float tg = 0.0; bool gh = false; float gmin = 1e3;
-    for (int i = 0; i < 48; i++) {
-      float d = sdGlass(ro + rd * tg);
-      gmin = min(gmin, d);
-      if (d < 0.001) { gh = true; break; }
-      tg += d;
-      if (tg > 8.0) break;
-    }
-    if (hit) {
-      vec3 p = ro + rd * t;
-      vec3 n = solidNormal(p);
-      vec3 L = normalize(vec3(-0.5, 0.8, 0.6));
-      float dif = dot(n, L);
-      float band = dif > 0.5 ? 1.0 : dif > 0.0 ? 0.72 : 0.5;
-      vec3 base = m == 0.0 ? uPaper : uLiquid;
-      vec3 sc2 = base * band;
-      if (m == 0.0) {
-        float lines = step(0.6, fract(gl_FragCoord.x * 0.3));
-        sc2 = mix(sc2, uInk, (1.0 - band) * lines * 0.9);
-      } else {
-        sc2 += pow(max(dot(reflect(-L, n), -rd), 0.0), 24.0) * 0.6;  // liquid spec
-      }
-      float rim = 1.0 - abs(dot(n, -rd));
-      sc2 = mix(sc2, uInk, smoothstep(0.78, 0.92, rim));
-      c = sc2;
-    } else if (minD < 0.006) {
-      c = uInk;     // ink silhouette
-    }
-    if (gh && (!hit || tg < t)) {
-      vec3 n = glassNormal(ro + rd * tg);
-      float fr = pow(1.0 - abs(dot(n, -rd)), 2.5);
-      c = mix(c, uPaper, 0.08 + fr * 0.55);
-      c = mix(c, uInk, smoothstep(0.86, 0.97, 1.0 - abs(dot(n, -rd))) * 0.85);
-      float spec = pow(max(dot(reflect(rd, n), normalize(vec3(-0.4, 0.6, 0.7))), 0.0), 40.0);
-      c += spec * 0.8;
-    } else if (!gh && gmin < 0.004 && (!hit)) {
-      c = mix(c, uInk, 0.8);
-    }
-  }
   return c;
 }
 
@@ -296,14 +163,9 @@ void main() {
   float yt = 1.0 - uv.y;
 
   float pA = sat(uP / 0.2);                          // rise
-  float pB = sat((uP - 0.2) / 0.22);                 // panel
-  float pC = sat((uP - 0.5) / 0.16);                 // melt to room
-  float pT = sat((uP - 0.6) / 0.12);                 // name
-  float pD = sat((uP - 0.7) / 0.28);                 // pour
+  float pC = sat((uP - 0.55) / 0.2);                 // melt to room
+  float pT = sat((uP - 0.68) / 0.16);                // name
 
-  float baseLevel = BC.y - 0.5;
-  LEVEL = mix(baseLevel, BC.y + 0.22, pD);
-  POUR = pD > 0.0 && pD < 0.99 ? smoothstep(0.0, 0.08, pD) * (1.0 - smoothstep(0.9, 0.99, pD)) : 0.0;
 
   vec3 outc = uInk;
   float roomMask = step(uv.y, pC * 1.9 - r1 * 0.65 - r2 * 0.25);   // room rises in streaks
@@ -317,8 +179,6 @@ void main() {
       float syt = max((1.0 - ys) - melt, (1.0 - ys) * 0.04);
       vec2 suv = vec2(uv.x, 1.0 - syt);
       vec3 h = hall(suv);
-      vec4 pn = panel(suv, pB);
-      h = mix(h, pn.rgb, pn.a);
       // hot streak front while rising
       float hot = smoothstep(0.08, 0.0, rise - uv.y) * (1.0 - pA);
       h = mix(h, uRoom * 1.25, hot);
@@ -328,23 +188,13 @@ void main() {
       outc = h;
     }
   } else {
-    outc = room(uv, pT, pD);
+    outc = room(uv, pT);
   }
 
   // global film grain
   outc += (hash21(gl_FragCoord.xy + fract(uTime) * 91.0) - 0.5) * 0.045;
   gl_FragColor = vec4(outc, 1.0);
 }`;
-
-function complement(hex: string) {
-  const [r, g, b] = hexToRgb(hex);
-  // rotate hue 180° in a simple way, then keep it bright & saturated
-  const mx = Math.max(r, g, b),
-    mn = Math.min(r, g, b);
-  const c: [number, number, number] = [mx + mn - r, mx + mn - g, mx + mn - b];
-  const k = 1 / Math.max(...c, 0.001);
-  return c.map((v) => Math.min(1, v * k * 0.95)) as [number, number, number];
-}
 
 async function textCanvas(name: string, fontVar: string, upper: boolean) {
   try {
@@ -369,26 +219,6 @@ async function textCanvas(name: string, fontVar: string, upper: boolean) {
   return cv;
 }
 
-async function photoCanvas(src: string): Promise<{ canvas: HTMLCanvasElement; aspect: number } | null> {
-  if (!src) return null;
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const w = img.naturalWidth || 1024,
-        h = img.naturalHeight || 1024;
-      const s = Math.min(1, 1024 / Math.max(w, h));
-      const cv = document.createElement("canvas");
-      cv.width = Math.round(w * s);
-      cv.height = Math.round(h * s);
-      cv.getContext("2d")!.drawImage(img, 0, 0, cv.width, cv.height);
-      resolve({ canvas: cv, aspect: w / h });
-    };
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
-}
-
 function Caption({ progress, range, children, className = "" }: { progress: MotionValue<number>; range: [number, number, number, number]; children: React.ReactNode; className?: string }) {
   const opacity = useTransform(progress, range, [0, 1, 1, 0]);
   const y = useTransform(progress, [range[0], range[3]], [40, -40]);
@@ -403,7 +233,6 @@ export default function RedRoom({
   name,
   headline,
   intro,
-  photoUrl,
   room = "#e1121b",
   ink = "#070606",
   paper = "#f2ede4",
@@ -414,7 +243,6 @@ export default function RedRoom({
   name: string;
   headline: string;
   intro: string;
-  photoUrl: string;
   room?: string;
   ink?: string;
   paper?: string;
@@ -464,20 +292,10 @@ export default function RedRoom({
       else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
       return tex;
     };
-    mkTex(0, null);
     mkTex(1, null);
-    gl.uniform1i(u("uPhoto"), 0);
     gl.uniform1i(u("uText"), 1);
-    let photoAspect = 1,
-      hasPhoto = 0,
-      textAspect = 2048 / 900;
+    let textAspect = 2048 / 900;
     let alive = true;
-    photoCanvas(photoUrl).then((r) => {
-      if (!alive || !r) return;
-      mkTex(0, r.canvas);
-      photoAspect = r.aspect;
-      hasPhoto = 1;
-    });
     textCanvas(name, displayFont, upper).then((cv) => {
       if (!alive) return;
       mkTex(1, cv);
@@ -520,9 +338,6 @@ export default function RedRoom({
       gl.uniform3f(u("uRoom"), ...hexToRgb(room));
       gl.uniform3f(u("uInk"), ...hexToRgb(ink));
       gl.uniform3f(u("uPaper"), ...hexToRgb(paper));
-      gl.uniform3f(u("uLiquid"), ...complement(room));
-      gl.uniform1f(u("uPhotoAspect"), photoAspect);
-      gl.uniform1f(u("uHasPhoto"), hasPhoto);
       gl.uniform1f(u("uTextAspect"), textAspect);
       gl.uniform1f(u("uMobile"), canvas.width / canvas.height < 0.9 ? 1 : 0);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -537,7 +352,7 @@ export default function RedRoom({
       gl.getExtension("WEBGL_lose_context")?.loseContext();
       canvas.remove();
     };
-  }, [photoUrl, name, room, ink, paper, displayFont, upper]);
+  }, [name, room, ink, paper, displayFont, upper]);
 
   if (fallback) {
     // static, accessible version: the final red room
@@ -554,7 +369,7 @@ export default function RedRoom({
   }
 
   return (
-    <section ref={section} className="relative h-[460svh]" aria-label={`${name} — introduction`}>
+    <section ref={section} className="relative h-[380svh]" aria-label={`${name} — introduction`}>
       <div className="sticky top-0 h-[100svh] overflow-hidden" style={{ background: ink }}>
         <div ref={host} aria-hidden className="absolute inset-0" />
         {/* captions that ride on top of the scene */}
@@ -562,7 +377,7 @@ export default function RedRoom({
           <span className={labelClass} style={{ color: paper }}>Enter</span>
           <span className="mt-3 font-serif text-4xl italic md:text-6xl" style={{ color: paper }}>the room</span>
         </Caption>
-        <Caption progress={scrollYProgress} range={[0.3, 0.36, 0.46, 0.5]} className="inset-x-5 bottom-[9svh] md:inset-x-10">
+        <Caption progress={scrollYProgress} range={[0.28, 0.34, 0.48, 0.54]} className="inset-x-5 bottom-[9svh] md:inset-x-10">
           {intro && (
             <p className="mx-auto max-w-xl text-center text-lg leading-relaxed md:text-2xl" style={{ color: paper }}>
               {intro}
@@ -570,17 +385,13 @@ export default function RedRoom({
           )}
         </Caption>
         {headline && (
-          <Caption progress={scrollYProgress} range={[0.66, 0.72, 0.96, 0.995]} className="left-5 right-5 top-[30svh] md:left-10 md:right-auto md:top-[56svh] md:max-w-[40vw]">
-            <p className={`${labelClass} text-center md:text-left`} style={{ color: paper }}>
+          <Caption progress={scrollYProgress} range={[0.76, 0.84, 0.97, 0.995]} className="inset-x-5 top-[76svh] md:top-[80svh]">
+            <p className={`${labelClass} text-center`} style={{ color: ink }}>
               {headline}
             </p>
           </Caption>
         )}
-        <Caption progress={scrollYProgress} range={[0.7, 0.76, 0.96, 0.995]} className="bottom-[6svh] left-5 md:bottom-[9svh] md:left-10">
-          <span className={labelClass} style={{ color: ink }}>
-            Scroll — fill the glass
-          </span>
-        </Caption>
+
       </div>
     </section>
   );
