@@ -584,7 +584,10 @@ export default function CreateWizard() {
 
               {s.key === "design" && <DesignPicker value={form.design} onChange={(v) => update("design", v)} />}
 
-              {s.key === "review" && <Review form={form} goTo={goTo} errors={errors} onConsent={(v) => update("consent", v)} />}
+              {s.key === "review" && <Review form={form} goTo={goTo} errors={errors} onConsent={(v) => {
+                    update("consent", v);
+                    if (v) setErrors(({ consent: _c, ...rest }) => (void _c, rest));
+                  }} />}
             </motion.div>
           </AnimatePresence>
 
