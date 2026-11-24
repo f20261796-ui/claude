@@ -2,7 +2,6 @@
 
 import { motion } from "motion/react";
 import { TLink } from "@/components/motion/PageTransition";
-import { siteConfig } from "@/lib/config";
 
 export default function DemoBanner() {
   return (
@@ -19,7 +18,7 @@ export default function DemoBanner() {
           data-cursor="Begin"
           className="ml-auto shrink-0 rounded-full bg-blood px-5 py-3 font-display text-xs font-bold uppercase"
         >
-          Make mine — ₹{siteConfig.price}
+          Make mine
         </TLink>
       </div>
     </motion.div>

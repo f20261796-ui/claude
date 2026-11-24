@@ -5,13 +5,11 @@ import { AnimatePresence, motion } from "motion/react";
 import { LogoLink, Wordmark } from "./Logo";
 import { TLink } from "@/components/motion/PageTransition";
 import { useLenis } from "@/components/motion/SmoothScroll";
-import { siteConfig } from "@/lib/config";
 
 const LINKS = [
   { href: "/#process", label: "Process" },
   { href: "/#work", label: "Examples" },
   { href: "/#included", label: "Included" },
-  { href: "/#pricing", label: "Pricing" },
   { href: "/#faq", label: "FAQ" },
 ];
 
@@ -82,7 +80,7 @@ export default function Nav() {
               data-cursor="Begin"
               className="label ml-1 flex items-center gap-2 rounded-full bg-blood px-5 py-2.5 font-bold text-bone transition-transform hover:scale-[1.04]"
             >
-              Create — ₹{siteConfig.price}
+              Create yours
             </TLink>
           </nav>
 
@@ -138,7 +136,7 @@ export default function Nav() {
               transition={{ delay: 0.6 }}
             >
               <Wordmark className="text-3xl" />
-              <span className="label">₹{siteConfig.price} only</span>
+              <span className="label">Your story, online</span>
             </motion.div>
           </motion.div>
         )}

@@ -28,7 +28,7 @@ export function IdentityStrip() {
       </div>
       <div className="mt-[-1.5rem] rotate-[3deg] scale-110 border-y border-bone/20 bg-ink py-2 md:py-3">
         <Marquee
-          items={["Designed around you", "Mobile ready", "Shareable link", "Recruiter ready", `₹${siteConfig.price} only`]}
+          items={["Designed around you", "Mobile ready", "Shareable link", "Recruiter ready", "Yours to share"]}
           itemClassName="label text-sm text-bone md:text-base"
           duration={30}
           reverse
@@ -368,56 +368,10 @@ export function Included() {
   );
 }
 
-/* ─────────────────────────── Pricing ─────────────────────────── */
-export function Pricing() {
-  const ref = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
-  const scale = useTransform(scrollYProgress, [0, 0.5], [0.6, 1]);
-  const rotate = useTransform(scrollYProgress, [0, 0.5], [-8, 0]);
-  return (
-    <section id="pricing" ref={ref} className="relative overflow-hidden bg-blood px-4 py-24 text-ink md:px-10 md:py-36">
-      <div className="streaks pointer-events-none absolute inset-0 opacity-25" />
-      <div className="relative grid gap-12 md:grid-cols-12">
-        <div className="md:col-span-7">
-          <p className="label mb-8 text-ink/70">(06) Pricing — one offer, no tiers</p>
-          <RevealLines
-            lines={["Your personal", "website for"]}
-            className="display text-[12vw] md:text-[6.2vw]"
-          />
-          <motion.div style={{ scale, rotate }} className="origin-left">
-            <span className="display block text-[46vw] leading-[0.8] text-ink md:text-[24vw]">
-              ₹{siteConfig.price}
-            </span>
-          </motion.div>
-        </div>
-        <div className="flex flex-col justify-end md:col-span-4 md:col-start-9">
-          <div className="rounded-[1.5rem] bg-ink p-7 text-bone md:p-9">
-            <div className="flex items-baseline justify-between border-b border-line pb-6">
-              <span className="label text-ash">One-time</span>
-              <span className="font-display text-4xl font-bold">₹{siteConfig.price}</span>
-            </div>
-            <ul className="space-y-3 py-6 text-bone/85">
-              {["No hidden charges", "No subscription", "Personal shareable URL", "All 12 sections included", "Designed for mobile", "Pay with any UPI app"].map((x) => (
-                <li key={x} className="flex items-center gap-3">
-                  <span className="h-1.5 w-1.5 rotate-45 bg-blood" />
-                  {x}
-                </li>
-              ))}
-            </ul>
-            <Button href="/create" size="lg" cursor="Begin" className="w-full">
-              Build my website
-            </Button>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /* ─────────────────────────── FAQ ─────────────────────────── */
 const FAQS: [string, string][] = [
   [
-    `What do I get for ₹${siteConfig.price}?`,
+    "What do I get?",
     "A personal portfolio website with its own link — about, education, skills, projects, experience, achievements, certifications, resume download, contact and social links — designed in the style and colour you choose.",
   ],
   [
@@ -512,7 +466,7 @@ export function FinalCTA() {
       </h2>
       <div className="relative mt-14 flex flex-col items-start gap-6 md:flex-row md:items-center md:justify-between">
         <RevealWords
-          text={`Ten minutes, ₹${siteConfig.price}, and a link you'll be proud to share.`}
+          text="Ten minutes, and a link you'll be proud to share."
           className="max-w-md text-lg text-bone/70"
         />
         <Button href="/create" size="xl" cursor="Begin">

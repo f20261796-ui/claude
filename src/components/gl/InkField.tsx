@@ -21,6 +21,10 @@ uniform float uMouseAmt;
 uniform float uMelt;
 uniform float uVel;
 uniform vec3 uRipples[6];
+uniform vec3 uInk;
+uniform vec3 uBase;
+uniform vec3 uLine;
+uniform float uVignette;
 ${NOISE}
 
 vec3 scene(vec2 uv, float t) {
@@ -39,20 +43,20 @@ vec3 scene(vec2 uv, float t) {
 
   // red mass vs black void
   float mass = smoothstep(0.42, 0.62, f + 0.25 * q.y - 0.12 * (1.0 - uv.y));
-  vec3 blood = vec3(0.88, 0.07, 0.10);
-  vec3 deep = vec3(0.35, 0.01, 0.03);
-  vec3 col = mix(vec3(0.028, 0.024, 0.024), mix(deep, blood, smoothstep(0.45, 0.85, f + q.x * 0.3)), mass);
-  col = mix(col, vec3(0.02), grain * mass * 0.95);
+  vec3 blood = uInk;
+  vec3 deep = mix(uBase, uInk, 0.38);
+  vec3 col = mix(uBase, mix(deep, blood, smoothstep(0.45, 0.85, f + q.x * 0.3)), mass);
+  col = mix(col, uLine, grain * mass * 0.95);
 
   // ink edge highlight (manga contour)
   float edge = smoothstep(0.02, 0.0, abs(f + 0.25 * q.y - 0.12 * (1.0 - uv.y) - 0.52));
-  col = mix(col, vec3(0.01), edge * 0.8);
+  col = mix(col, uLine, edge * 0.8);
 
   // liquid pool under the pointer
   vec2 mp = vec2(uMouse.x * aspect, uMouse.y);
   float d = length(p - mp);
   float pool = smoothstep(0.22, 0.0, d + 0.06 * (vnoise(p * 8.0 + t) - 0.5)) * uMouseAmt;
-  col = mix(col, vec3(1.0, 0.16, 0.16), pool * 0.85);
+  col = mix(col, min(uInk * 1.15 + 0.08, vec3(1.0)), pool * 0.85);
   col += vec3(1.0, 0.75, 0.7) * smoothstep(0.05, 0.0, abs(d - 0.12 - 0.02 * sin(t * 3.0))) * uMouseAmt * 0.25;
   return col;
 }
@@ -95,12 +99,31 @@ void main() {
 
   // vignette + grain
   vec2 vv = vUv - 0.5;
-  c *= 1.0 - dot(vv, vv) * 1.1;
+  c = mix(c, c * (1.0 - dot(vv, vv) * 1.1), uVignette);
   c += (hash21(vUv * uRes + fract(t) * 100.0) - 0.5) * 0.05;
   gl_FragColor = vec4(c, 1.0);
 }`;
 
-export default function InkField({ melt, className = "" }: { melt?: { current: number }; className?: string }) {
+export const hexToRgb = (h: string): [number, number, number] => {
+  const n = parseInt(h.replace("#", ""), 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+};
+
+export default function InkField({
+  melt,
+  className = "",
+  ink = "#e1121b",
+  base = "#070606",
+  line = "#050404",
+  vignette = 1,
+}: {
+  melt?: { current: number };
+  className?: string;
+  ink?: string;
+  base?: string;
+  line?: string;
+  vignette?: number;
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
   const fallback = useRef(0);
   const meltRef = melt ?? fallback;
@@ -193,6 +216,10 @@ export default function InkField({ melt, className = "" }: { melt?: { current: n
       gl.uniform1f(u("uMelt"), melt);
       gl.uniform1f(u("uVel"), reduced ? 0 : Math.min(40, scrollState.velocity));
       gl.uniform3fv(u("uRipples"), ripples);
+      gl.uniform3f(u("uInk"), ...hexToRgb(ink));
+      gl.uniform3f(u("uBase"), ...hexToRgb(base));
+      gl.uniform3f(u("uLine"), ...hexToRgb(line));
+      gl.uniform1f(u("uVignette"), vignette);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       if (reduced) cancelAnimationFrame(raf);
     };

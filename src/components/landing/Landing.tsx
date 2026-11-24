@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Loader from "@/components/motion/Loader";
 import Hero from "./Hero";
-import { FAQ, FinalCTA, IdentityStrip, Included, Manifesto, Pricing, Process, Work } from "./Sections";
+import { FAQ, FinalCTA, IdentityStrip, Included, Manifesto, Process, Work } from "./Sections";
 import Footer from "@/components/brand/Footer";
 
 export default function Landing() {
@@ -18,7 +18,6 @@ export default function Landing() {
         <Process />
         <Work />
         <Included />
-        <Pricing />
         <FAQ />
         <FinalCTA />
       </main>

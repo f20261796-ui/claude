@@ -19,10 +19,10 @@ const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono-jb", we
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.siteUrl),
   title: { default: "IDENTITY. — Your story. Your space. Your website.", template: "%s — IDENTITY." },
-  description: `Your own professional portfolio website, designed around you. Built to make an impression. ₹${siteConfig.price} only.`,
+  description: "Your own professional portfolio website, designed around you. Built to make an impression.",
   openGraph: {
     title: "IDENTITY. — Your story. Your space. Your website.",
-    description: `A personal portfolio website, designed around you. ₹${siteConfig.price}.`,
+    description: "A personal portfolio website, designed around you.",
     type: "website",
   },
 };

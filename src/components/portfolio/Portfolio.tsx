@@ -4,11 +4,57 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "motion/react";
 import type { PortfolioData } from "@/lib/portfolio-types";
 import { THEMES, onAccent, type Theme } from "./themes";
-import Marquee from "@/components/motion/Marquee";
+import dynamic from "next/dynamic";
 import MeltImage from "@/components/gl/MeltImage";
 import Magnetic from "@/components/motion/Magnetic";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
+const InkField = dynamic(() => import("@/components/gl/InkField"), { ssr: false });
+const RedRoom = dynamic(() => import("@/components/gl/RedRoom"), { ssr: false });
+
+/** Per-theme colours for the WebGL scenes. */
+function sceneColors(d: PortfolioData, t: Theme) {
+  switch (d.style) {
+    case "minimalist":
+      return { ink: "#121212", paper: "#ffffff", base: t.bg, line: "#121212", font: "--font-inter", upper: false, inkOpacity: 0.32 };
+    case "futuristic":
+      return { ink: "#060a12", paper: "#d6f5ff", base: "#060a12", line: "#060a12", font: "--font-mono-jb", upper: true, inkOpacity: 0.55 };
+    case "colourful":
+      return { ink: "#2d1b69", paper: "#fff3d6", base: t.bg, line: "#2d1b69", font: "--font-space", upper: false, inkOpacity: 0.45 };
+    default:
+      return { ink: "#070606", paper: "#f2ede4", base: "#070606", line: "#050404", font: "--font-playfair", upper: false, inkOpacity: 0.85 };
+  }
+}
+
+/** Heading that builds itself out of rising vertical streaks. */
+function StreakTitle({ children, className = "", slices = 16 }: { children: React.ReactNode; className?: string; slices?: number }) {
+  const reduce = useReducedMotion();
+  if (reduce) return <span className={className}>{children}</span>;
+  return (
+    <span className={`relative block overflow-hidden pb-[0.08em] ${className}`}>
+      <span className="invisible" aria-hidden>
+        {children}
+      </span>
+      {Array.from({ length: slices }).map((_, i) => {
+        const r = ((i * 7919) % 17) / 17;
+        return (
+          <motion.span
+            key={i}
+            aria-hidden
+            className="absolute inset-0"
+            style={{ clipPath: `inset(-20% ${100 - ((i + 1) * 100) / slices}% -20% ${(i * 100) / slices - 0.3}%)` }}
+            initial={{ y: "115%", scaleY: 1.8 }}
+            whileInView={{ y: "0%", scaleY: 1 }}
+            viewport={{ once: true, margin: "0px 0px -10% 0px" }}
+            transition={{ duration: 0.9 + r * 0.5, ease: EASE, delay: r * 0.35 }}
+          >
+            {children}
+          </motion.span>
+        );
+      })}
+    </span>
+  );
+}
 
 /* ───────────── small building blocks ───────────── */
 
@@ -38,16 +84,13 @@ function Scramble({ text, className = "" }: { text: string; className?: string }
 function SectionTitle({ index, title, t, accent }: { index: string; title: string; t: Theme; accent: string }) {
   return (
     <div className="mb-10 flex items-end justify-between gap-6 border-b pb-5 md:mb-16" style={{ borderColor: t.line }}>
-      <motion.h2
-        className={`${t.heading} text-[13vw] md:text-[6vw]`}
-        initial={{ opacity: 0, y: 60 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "0px 0px -10% 0px" }}
-        transition={{ duration: 1, ease: EASE }}
-      >
-        {title}
-        <span style={{ color: accent }}>.</span>
-      </motion.h2>
+      <h2 className={`${t.heading} text-[13vw] md:text-[6vw]`}>
+        <span className="sr-only">{title}</span>
+        <StreakTitle>
+          {title}
+          <span style={{ color: accent }}>.</span>
+        </StreakTitle>
+      </h2>
       <span className={`${t.label} shrink-0 pb-2`} style={{ color: t.muted }}>
         ({index})
       </span>
@@ -101,13 +144,9 @@ function Hero({ d, t }: { d: PortfolioData; t: Theme }) {
       </motion.span>
     ));
 
+  const sc = sceneColors(d, t);
   const photo = d.photoUrl ? (
-    d.style === "cinematic" ? (
-      <MeltImage src={d.photoUrl} alt={d.name} className="h-full w-full" revealSpan={0.2} />
-    ) : (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={d.photoUrl} alt={d.name} className="h-full w-full object-cover" />
-    )
+    <MeltImage src={d.photoUrl} alt={d.name} className="h-full w-full" revealSpan={0.2} />
   ) : (
     <div className="flex h-full w-full items-center justify-center" style={{ background: d.accent, color: onAccent(d.accent) }}>
       <span className={`${t.display} text-[30vw] md:text-[12vw]`}>
@@ -128,6 +167,20 @@ function Hero({ d, t }: { d: PortfolioData; t: Theme }) {
 
   return (
     <section ref={ref} className="relative flex min-h-[100svh] flex-col justify-end overflow-hidden px-5 pb-10 pt-28 md:px-10 md:pb-14">
+      <motion.div
+        aria-hidden
+        className="absolute inset-0"
+        initial={{ opacity: 0, scale: 1.1 }}
+        animate={{ opacity: sc.inkOpacity, scale: 1 }}
+        transition={{ duration: 2, ease: EASE }}
+      >
+        <InkField ink={d.accent} base={sc.base} line={sc.line} vignette={d.style === "cinematic" || d.style === "futuristic" ? 1 : 0} />
+      </motion.div>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{ background: `linear-gradient(90deg, ${t.bg}f0 0%, ${t.bg}99 38%, transparent 75%), linear-gradient(0deg, ${t.bg} 0%, transparent 40%)` }}
+      />
       {d.style === "colourful" && (
         <motion.div
           aria-hidden
@@ -380,17 +433,13 @@ function ProjectCard({ p, i, d, t }: { p: PortfolioData["projects"][number]; i: 
         whileInView={{ clipPath: "inset(0% 0% 0% 0%)", opacity: 1 }}
         viewport={{ once: true, margin: "0px 0px -10% 0px" }}
         transition={{ duration: 1.3, ease: EASE }}
-        data-cursor={p.liveUrl || p.githubUrl ? "Open" : undefined}
+        data-cursor="Look"
       >
         <div className="relative aspect-[4/3] overflow-hidden">
           {p.imageUrl ? (
-            <motion.img
-              src={p.imageUrl}
-              alt={p.title}
-              loading="lazy"
-              style={{ y: imgY, scale: 1.18 }}
-              className="absolute inset-0 h-full w-full object-cover transition-[filter] duration-700 group-hover:brightness-110"
-            />
+            <motion.div style={{ y: imgY, scale: 1.12 }} className="absolute inset-0">
+              <MeltImage src={p.imageUrl} alt={p.title} className="h-full w-full" />
+            </motion.div>
           ) : (
             <div className="absolute inset-0 flex items-center justify-center" style={{ background: d.accent }}>
               <span className={`${t.heading} px-6 text-center text-[9vw] md:text-[4vw]`} style={{ color: onAccent(d.accent) }}>
@@ -606,8 +655,17 @@ function Recognition({
 
 function Contact({ d, t, index }: { d: PortfolioData; t: Theme; index: string }) {
   return (
-    <section id="contact" className="relative overflow-hidden px-5 py-24 md:px-10 md:py-40" style={{ background: d.accent, color: onAccent(d.accent) }}>
-      {d.style === "cinematic" && <div aria-hidden className="streaks pointer-events-none absolute inset-0 opacity-25" />}
+    <section id="contact" className="relative overflow-hidden px-5 pb-[34svh] pt-24 md:px-10 md:pb-[38svh] md:pt-40" style={{ background: d.accent, color: onAccent(d.accent) }}>
+      <div aria-hidden className="streaks pointer-events-none absolute inset-0 opacity-20" />
+      {/* the room's white floor, receding in perspective */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-[30svh] overflow-hidden [perspective:420px]" style={{ background: sceneColors(d, t).paper }}>
+        <div
+          className="absolute -inset-x-[60%] top-0 h-[260%] origin-top [transform:rotateX(62deg)]"
+          style={{ backgroundImage: `repeating-linear-gradient(90deg, ${sceneColors(d, t).ink}66 0 2px, transparent 2px 46px)` }}
+        />
+        <div className="absolute inset-x-0 top-0 h-[3px]" style={{ background: sceneColors(d, t).ink }} />
+        <div className="absolute inset-x-0 top-0 h-1/2" style={{ background: `linear-gradient(${sceneColors(d, t).paper}, transparent)` }} />
+      </div>
       <div className="relative">
         <p className={`${t.label} mb-8 opacity-70`}>({index}) Contact</p>
         <motion.h2
@@ -704,7 +762,6 @@ export default function Portfolio({ data: d, brandUrl = "/" }: { data: Portfolio
   const { scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 30 });
 
-  const marquee = [d.headline, ...d.skills.slice(0, 6).map((s) => s.name), d.city].filter(Boolean) as string[];
 
   return (
     <div
@@ -726,16 +783,18 @@ export default function Portfolio({ data: d, brandUrl = "/" }: { data: Portfolio
         <div aria-hidden className="pointer-events-none fixed -left-[20vw] top-[20vh] h-[50vw] w-[50vw] rounded-full opacity-20 blur-[120px]" style={{ background: d.accent }} />
       )}
 
-      <motion.div className="fixed inset-x-0 top-0 z-50 h-[3px] origin-left" style={{ scaleX: progress, background: d.accent }} />
 
       <header className="fixed inset-x-0 top-0 z-40 flex items-center justify-between px-5 py-4 md:px-10 md:py-6">
-        <a href="#top" className={`${t.label} rounded-full px-3 py-2 backdrop-blur-md`} style={{ background: `${t.bg}cc` }}>
+        <a href="#top" aria-label="Back to top" className={`${t.label} relative flex h-12 w-12 items-center justify-center rounded-full backdrop-blur-md`} style={{ background: `${t.bg}cc` }}>
+          <svg viewBox="0 0 48 48" className="absolute inset-0 -rotate-90" aria-hidden>
+            <circle cx="24" cy="24" r="22" fill="none" stroke={t.line} strokeWidth="1.5" />
+            <motion.circle cx="24" cy="24" r="22" fill="none" stroke={d.accent} strokeWidth="1.5" style={{ pathLength: progress }} />
+          </svg>
           {d.name
             .split(/\s+/)
             .map((p) => p[0])
             .join("")
-            .slice(0, 3)}
-          <span style={{ color: d.accent }}>.</span>
+            .slice(0, 2)}
         </a>
         <nav className="no-scrollbar hidden max-w-[70vw] gap-1 overflow-x-auto rounded-full border p-1 backdrop-blur-md md:flex" style={{ borderColor: t.line, background: `${t.bg}b3` }}>
           {sections.map((s) => (
@@ -755,16 +814,18 @@ export default function Portfolio({ data: d, brandUrl = "/" }: { data: Portfolio
 
       <main id="top" className="relative">
         <Hero d={d} t={t} />
-        {marquee.length > 1 && (
-          <div className="border-y py-5" style={{ borderColor: t.line }}>
-            <Marquee
-              items={marquee}
-              itemClassName={`${t.heading} text-4xl md:text-6xl`}
-              duration={30}
-              separator={d.style === "futuristic" ? "/" : "✦"}
-            />
-          </div>
-        )}
+        <RedRoom
+          name={d.name}
+          headline={d.headline}
+          intro={d.intro}
+          photoUrl={d.photoUrl}
+          room={d.accent}
+          ink={sceneColors(d, t).ink}
+          paper={sceneColors(d, t).paper}
+          displayFont={sceneColors(d, t).font}
+          upper={sceneColors(d, t).upper}
+          labelClass={t.label}
+        />
         <About d={d} t={t} index={idx("about")} />
         <Skills d={d} t={t} index={idx("skills")} />
         <Projects d={d} t={t} index={idx("projects")} />

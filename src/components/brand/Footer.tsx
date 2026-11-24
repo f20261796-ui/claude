@@ -19,7 +19,7 @@ export default function Footer() {
             <ul className="space-y-2 text-bone/80">
               <li><Link className="hover:text-blood" href="/#process">Process</Link></li>
               <li><Link className="hover:text-blood" href="/#work">Examples</Link></li>
-              <li><Link className="hover:text-blood" href="/#pricing">Pricing</Link></li>
+              <li><Link className="hover:text-blood" href="/#faq">FAQ</Link></li>
               <li><TLink className="hover:text-blood" href="/create">Create yours</TLink></li>
             </ul>
           </div>
@@ -39,7 +39,7 @@ export default function Footer() {
       </div>
       <div className="mt-6 flex flex-col justify-between gap-2 border-t border-line pt-5 md:flex-row">
         <span className="label text-ash">© {year} IDENTITY. All rights reserved.</span>
-        <span className="label text-ash">Personal portfolio websites — ₹{siteConfig.price}</span>
+        <span className="label text-ash">Personal portfolio websites</span>
       </div>
     </footer>
   );

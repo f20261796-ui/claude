@@ -4,16 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion, useMotionValue, useScroll, useSpring, useTransform } from "motion/react";
 import Button from "@/components/brand/Button";
-import { siteConfig } from "@/lib/config";
 
 const InkField = dynamic(() => import("@/components/gl/InkField"), { ssr: false });
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 function SpinningBadge() {
-  const text = `₹${siteConfig.price} ONLY • ONE-TIME • ₹${siteConfig.price} ONLY • YOURS • `;
+  const text = "SCROLL • ENTER • YOUR STORY • SCROLL • ENTER • YOUR STORY • ";
   return (
-    <div className="relative h-28 w-28 md:h-36 md:w-36" aria-label={`₹${siteConfig.price} only`}>
+    <div className="relative h-28 w-28 md:h-36 md:w-36" aria-hidden>
       <svg viewBox="0 0 200 200" className="absolute inset-0 h-full w-full animate-[spin_14s_linear_infinite]" aria-hidden>
         <defs>
           <path id="badge-circle" d="M100,100 m-78,0 a78,78 0 1,1 156,0 a78,78 0 1,1 -156,0" />
@@ -23,8 +22,7 @@ function SpinningBadge() {
         </text>
       </svg>
       <div className="absolute inset-[26%] flex flex-col items-center justify-center rounded-full bg-blood text-bone">
-        <span className="font-display text-2xl font-bold leading-none md:text-3xl">₹{siteConfig.price}</span>
-        <span className="label mt-1 text-[8px]">only</span>
+        <span className="animate-bounce font-display text-2xl font-bold leading-none md:text-3xl">↓</span>
       </div>
     </div>
   );
